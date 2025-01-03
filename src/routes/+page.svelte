@@ -1,17 +1,49 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getTopArtists, getNewReleases, getFeaturedPlaylists, getCategories } from '$lib/spotify';
+  import { getTopArtists, getNewReleases, getPlaylists, getCategories } from '$lib/spotify';
 
-  let artists: any[] = [];
-  let albums: any[] = [];
-  let playlists: any[] = [];
-  let categories: any[] = [];
+  interface Artist {
+    id: string;
+    name: string;
+    images: { url: string }[];
+  }
+
+  interface Album {
+    id: string;
+    name: string;
+    images: { url: string }[];
+    artists: { name: string }[];
+  }
+
+  interface Playlist {
+    id: string;
+    name: string;
+    images: { url: string }[];
+    owner: { display_name: string };
+  }
+
+  interface Category {
+    id: string;
+    name: string;
+    icons: { url: string }[];
+  }
+
+  let artists: Artist[] = [];
+  let albums: Album[] = [];
+  let playlists: Playlist[] = [];
+  let categories: Category[] = [];
   let loading = true;
   let errors: Record<string, string> = {};
 
-  async function fetchData(fetcher: () => Promise<any>, key: string) {
+  async function fetchData<T>(fetcher: () => Promise<T>, key: string): Promise<T[]> {
     try {
-      return await fetcher();
+      const result = await Promise.race([
+        fetcher(),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Request timed out')), 15000)
+        )
+      ]);
+      return Array.isArray(result) ? result : [result];
     } catch (err) {
       console.error(`Error fetching ${key}:`, err);
       errors[key] = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -20,17 +52,20 @@
   }
 
   onMount(async () => {
-    [artists, albums, playlists, categories] = await Promise.all([
+    const fetchPromises = [
       fetchData(getTopArtists, 'artists'),
       fetchData(getNewReleases, 'albums'),
-      fetchData(getFeaturedPlaylists, 'playlists'),
+      fetchData(getPlaylists, 'playlists'),
       fetchData(getCategories, 'categories')
-    ]);
+    ];
+
+    const results = await Promise.all(fetchPromises);
+    [artists, albums, playlists, categories] = results;
     loading = false;
   });
 </script>
 
-<div class="space-y-8 pt-2">
+<div class="space-y-8 pt-2 pb-20 rounded-lg">
   {#if Object.keys(errors).length > 0}
     <div class="bg-red-500/10 text-red-500 p-4 rounded-lg mx-2 mt-2">
       {#each Object.entries(errors) as [key, error]}
@@ -53,7 +88,7 @@
         </a>
       </div>
       {#if artists.length > 0}
-        <div class="grid grid-cols-6 gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {#each artists as artist}
             <a href={`/artist/${artist.id}`} class="group">
               <div class="aspect-square rounded-full overflow-hidden relative">
@@ -84,7 +119,7 @@
         </a>
       </div>
       {#if albums.length > 0}
-        <div class="grid grid-cols-6 gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {#each albums as album}
             <a 
               href={`/album/${album.id}`} 
@@ -111,16 +146,16 @@
       {/if}
     </section>
 
-    <!-- Featured Playlists -->
+    <!-- Playlists -->
     <section>
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold">Featured playlists</h2>
+        <h2 class="text-2xl font-bold">Popular playlists</h2>
         <a href="/playlists" class="text-sm text-gray-400 hover:text-white hover:underline">
           Show all
         </a>
       </div>
       {#if playlists.length > 0}
-        <div class="grid grid-cols-6 gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {#each playlists as playlist}
             <a 
               href={`/playlist/${playlist.id}`} 
@@ -156,7 +191,7 @@
         </a>
       </div>
       {#if categories.length > 0}
-        <div class="grid grid-cols-6 gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {#each categories as category}
             <a 
               href={`/category/${category.id}`} 

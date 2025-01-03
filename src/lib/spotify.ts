@@ -35,19 +35,26 @@ async function getAccessToken() {
   }
 }
 
-async function spotifyApi(endpoint: string) {
+async function spotifyApi(endpoint: string, timeout = 10000) {
   try {
     const token = await getAccessToken();
     console.log(`Making API call to: ${endpoint}`);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     const response = await fetch(`https://api.spotify.com/v1${endpoint}`, {
       headers: {
         'Authorization': `Bearer ${token}`
-      }
+      },
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`API error response: ${errorBody}`);
+      console.error(`API error response for ${endpoint}:`, errorBody);
       throw new Error(`Spotify API error: ${response.status} ${response.statusText}`);
     }
     
@@ -55,7 +62,11 @@ async function spotifyApi(endpoint: string) {
     console.log(`API call successful: ${endpoint}`);
     return data;
   } catch (error) {
-    console.error('API request error:', error);
+    if (error.name === 'AbortError') {
+      console.error(`API request timeout for ${endpoint}`);
+      throw new Error('Request timed out');
+    }
+    console.error(`API request error for ${endpoint}:`, error);
     throw error;
   }
 }
@@ -70,9 +81,27 @@ export async function getNewReleases() {
   return data.albums.items;
 }
 
-export async function getFeaturedPlaylists() {
-  const data = await spotifyApi('/browse/featured-playlists?limit=6');
-  return data.playlists.items;
+export async function getPlaylists() {
+  try {
+    const searchData = await spotifyApi('/search?q=top%20playlist&type=playlist&limit=6');
+    return searchData.playlists.items;
+  } catch (error) {
+    console.error('Error fetching playlists:', error);
+    
+    const playlistIds = [
+      '37i9dQZF1DXcBWIGoYBM5M',
+      '37i9dQZF1DX0XUsuxWHRQd',
+      '37i9dQZF1DX10zKzsJ2jva',
+      '37i9dQZF1DX4JAvHpjipBk',
+      '37i9dQZF1DX4sWSpwq3LiO',
+      '37i9dQZF1DXbTxeAdrVG2l'
+    ];
+    const playlistPromises = playlistIds.map(id => spotifyApi(`/playlists/${id}`));
+    const playlists = await Promise.allSettled(playlistPromises);
+    return playlists
+      .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+      .map(result => result.value);
+  }
 }
 
 export async function getCategories() {

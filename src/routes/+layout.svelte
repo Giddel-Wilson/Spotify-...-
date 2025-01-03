@@ -14,7 +14,7 @@
 			<TopBar />
 			<main
 				bind:this={mainContentRef}
-				class="w-[99.5%] h-full overflow-y-auto rounded-lg bg-gradient-to-b from-[#1a1a1a] to-[#121212"
+				class="w-[99.5%] h-full overflow-y-auto rounded-lg bg-gradient-to-b from-[#1a1a1a] overflow-hidden"
 			>
 				<div class="px-6 pb-6">
 					<slot />
@@ -43,9 +43,32 @@
 
 <style>
 	:global(body) {
-		margin: 0;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
-			'Open Sans', 'Helvetica Neue', sans-serif;
-		background-color: black;
+	  margin: 0;
+	  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+		Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+	  background-color: black;
 	}
-</style>
+	:global(*::-webkit-scrollbar) {
+	width: 16px;
+  }
+  
+  :global(*::-webkit-scrollbar-track) {
+	background: transparent;
+  }
+  
+  :global(*::-webkit-scrollbar-thumb) {
+	background-color: hsla(0, 0%, 100%, .3);
+	min-height: 32px;
+	border: 3px solid transparent;
+	background-clip: padding-box;
+	border-radius: 8px;
+  }
+  
+  :global(*::-webkit-scrollbar-thumb:hover) {
+	background-color: hsla(0, 0%, 100%, .4);
+  }
+  
+  :global(*::-webkit-scrollbar-button) {
+	display: none;
+  }
+  </style>
